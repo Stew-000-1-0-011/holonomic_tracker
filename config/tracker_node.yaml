@@ -1,0 +1,62 @@
+# tracker_node のパラメータ。
+# 「起動時のみ」以外は ros2 param set で実行中に変えられる (ゲイン調整用)。
+tracker_node:
+  ros__parameters:
+    # --- 起動時のみ ---
+    field_frame: field          # 目標・自己位置の座標系
+    base_frame: base_link       # 追従させる機体のフレーム (TFの子)
+    pose_source: tf             # tf: field_frame -> base_frame を引く / topic: pose_topic (PoseStamped)
+    pose_topic: pose
+    cmd_vel_topic: cmd_vel
+    cmd_vel_stamped: false      # true なら TwistStamped で出す
+    control_rate: 50.0          # [Hz]
+
+    # --- タイムアウトと遅れ ---
+    reference_timeout: 0.2      # [s] 目標がこれより来なければ止める
+    pose_timeout: 0.3           # [s] 自己位置がこれより古ければ止める
+    max_reference_extrapolation: 0.2  # [s] 目標をその時刻から今まで速度FFで外挿する上限
+    cmd_delay: 0.0              # [s] cmd_vel を出してから機体に効き始めるまで (オブザーバ用)
+
+    # --- フィードバック (フィールド座標系、軸ごと) ---
+    #   u = v_ff + kp*e + ki*∫e + kd*(v_ff - v_hat)
+    gains:
+      linear:
+        kp: 3.0                 # [1/s]
+        ki: 0.0                 # [1/s^2]
+        kd: 0.3                 # [-] 速度誤差 (オブザーバの推定速度) に対するゲイン
+        integral_limit: 0.1     # [m*s]
+      angular:
+        kp: 4.0
+        ki: 0.0
+        kd: 0.3
+        integral_limit: 0.1     # [rad*s]
+    heading_lookahead: 0.01     # [s] 機体座標系へ回すときの yaw の先読み (制御周期の半分くらい)
+
+    # --- 制限 (<= 0 で無効) ---
+    limits:
+      max_velocity_linear: 2.0  # [m/s]
+      max_velocity_angular: 6.0 # [rad/s]
+      max_accel_linear: 5.0     # [m/s^2]
+      max_accel_angular: 20.0   # [rad/s^2]
+      max_wheel_speed: 0.0      # [m/s] 車輪の周速。超えたら指令全体を一律に縮める
+    wheels:
+      angles_deg: [90.0, 210.0, 330.0]  # 機体中心から見た各車輪の方向 (x前方から反時計回り)
+      distance: 0.2             # [m] 機体中心から車輪まで
+
+    # --- オブザーバ (機体速度の推定) ---
+    observer:
+      tau_linear: 0.1           # [s] 下位速度制御の時定数。<= 0 で指令を使わない等速モデル
+      tau_angular: 0.1
+      accel_noise_linear: 1.0   # 大きいほど観測に素早く追従し、推定速度がうるさくなる
+      accel_noise_angular: 2.0
+      disturbance_noise_linear: 0.05   # 外乱速度 (滑りなど) の変化の速さ。0 で一定の外乱とみなす
+      disturbance_noise_angular: 0.1
+      sigma_position: 0.01      # [m]   自己位置の観測ノイズ
+      sigma_yaw: 0.01           # [rad]
+      initial_sigma_velocity_linear: 0.5
+      initial_sigma_velocity_angular: 1.0
+      initial_sigma_disturbance_linear: 0.1
+      initial_sigma_disturbance_angular: 0.2
+      gate_sigma: 0.0           # 自己位置の飛びを棄却する閾値 [sigma]。0 で無効
+      reset_after_rejects: 5    # 連続してこの回数を超えて棄却したら初期化し直す
+      max_gap: 1.0              # [s] 自己位置がこれ以上途切れたら初期化し直す
