@@ -13,8 +13,7 @@
 自己位置は [sotoba_ros](https://github.com/Stew-000-1-0-011/sotoba_ros) の TF
 (`field -> base_link`) をそのまま使える。PoseStamped のトピックでもよい。
 
-対応環境: ROS 2 Jazzy (Ubuntu 24.04) でビルド・テスト・動作を確認済み。
-C++20 で書いているので、sotoba_ros と同じ Lyrical Luth でもそのまま通るはず (未確認)。
+対応環境: ROS 2 Lyrical Luth / Ubuntu 26.04、C++23 (sotoba_ros と同じ)。
 
 ## 構成
 
@@ -178,9 +177,27 @@ ros2 launch holonomic_tracker tracker_node.launch.py sim:=true
 ros2 run holonomic_tracker check_tracking.py   # 別端末で。10 s 測って表示する
 ```
 
-ROS 2 Jazzy で、位置誤差 RMS 8.2 mm・最大 10.1 mm、yaw 誤差 RMS 0.0011 rad を確認済み。
+位置誤差 RMS 9.3 mm・最大 11.2 mm、yaw 誤差 RMS 0.0012 rad を確認済み。
 目標を止めると `tracking stopped: no reference` を出して止まること、
 `ros2 param set` でゲインが変わることも確認済み。
 
 `fake_holonomic_robot` はパラメータで時定数 (`plant_tau`)、自己位置の周期・遅れ・ノイズ、
 外乱速度 (`disturbance_vx`, `disturbance_vy`) を変えられる。
+
+### 動作確認済みの環境
+
+- `ros:lyrical-ros-base` (Ubuntu 26.04, GCC 15.2) のコンテナで、`colcon build` (警告なし) /
+  `colcon test` / 上記の手動テストが通ることを確認済み。
+  手書きのコードはすべて `-std=c++23` でコンパイルされる
+  (rosidl が生成するメッセージの型サポートだけは rosidl 自身の設定で C++20)。
+
+手元に Lyrical が無ければ、コンテナでビルド・テストできる。
+
+```bash
+docker run --rm -it -v $PWD:/ws/src/holonomic_tracker -w /ws ros:lyrical-ros-base bash
+# コンテナ内で
+apt-get update && apt-get install -y ros-lyrical-nav-msgs ros-lyrical-std-srvs \
+  ros-lyrical-tf2-ros python3-colcon-common-extensions
+source /opt/ros/lyrical/setup.bash
+colcon build && colcon test && colcon test-result --verbose
+```

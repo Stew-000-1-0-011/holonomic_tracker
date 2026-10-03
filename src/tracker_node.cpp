@@ -24,13 +24,9 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <std_srvs/srv/set_bool.hpp>
-#include <tf2/exceptions.h>
-#include <tf2_ros/buffer.h>
-#if __has_include(<tf2_ros/transform_listener.hpp>)
+#include <tf2/exceptions.hpp>
+#include <tf2_ros/buffer.hpp>
 #include <tf2_ros/transform_listener.hpp>
-#else
-#include <tf2_ros/transform_listener.h>
-#endif
 
 #include "holonomic_tracker/controller.hpp"
 #include "holonomic_tracker/msg/tracking_reference.hpp"
