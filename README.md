@@ -13,7 +13,7 @@
 自己位置は [sotoba_ros](https://github.com/Stew-000-1-0-011/sotoba_ros) の TF
 (`field -> base_link`) をそのまま使える。PoseStamped のトピックでもよい。
 
-対応環境: ROS 2 Lyrical Luth / Ubuntu 26.04、C++23 (sotoba_ros と同じ)。
+対応環境: ROS 2 Lyrical Luth / Ubuntu 26.04、C++26 (`CMAKE_CXX_STANDARD` で上書き可。C++23 以降が必須)。
 
 ## 構成
 
@@ -188,7 +188,7 @@ ros2 run holonomic_tracker check_tracking.py   # 別端末で。10 s 測って�
 
 - `ros:lyrical-ros-base` (Ubuntu 26.04, GCC 15.2) のコンテナで、`colcon build` (警告なし) /
   `colcon test` / 上記の手動テストが通ることを確認済み。
-  手書きのコードはすべて `-std=c++23` でコンパイルされる
+  手書きのコードはすべて `-std=c++26` でコンパイルされる
   (rosidl が生成するメッセージの型サポートだけは rosidl 自身の設定で C++20)。
 
 手元に Lyrical が無ければ、コンテナでビルド・テストできる。
