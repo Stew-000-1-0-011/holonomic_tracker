@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """模擬ロボットの真値と目標を突き合わせて、追従誤差を表示する手動テスト。
 
-    ros2 launch omni3_tracker tracker_node.launch.py sim:=true
-    ros2 run omni3_tracker check_tracking.py   # 別端末で
+    ros2 launch holonomic_tracker tracker_node.launch.py sim:=true
+    ros2 run holonomic_tracker check_tracking.py   # 別端末で
 
 目標は受信したものを真値の時刻まで速度FFで外挿して比べる。
 """
@@ -12,7 +12,7 @@ import sys
 
 import rclpy
 from geometry_msgs.msg import PoseStamped
-from omni3_tracker.msg import TrackingReference
+from holonomic_tracker.msg import TrackingReference
 from rclpy.node import Node
 
 
@@ -32,7 +32,7 @@ class Checker(Node):
         self.duration = duration
         self.t0 = None
         self.create_subscription(TrackingReference, '/tracker_node/reference', self.on_ref, 10)
-        self.create_subscription(PoseStamped, '/fake_omni_robot/truth', self.on_truth, 50)
+        self.create_subscription(PoseStamped, '/fake_holonomic_robot/truth', self.on_truth, 50)
 
     def on_ref(self, msg):
         self.ref = msg

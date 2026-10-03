@@ -1,14 +1,13 @@
 /// @file controller.cpp
 /// TrackingController の実装。
 
-#include "omni3_tracker/controller.hpp"
+#include "holonomic_tracker/controller.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 
-namespace omni3_tracker {
+namespace holonomic_tracker {
 	namespace {
 		auto clamp_abs(const double v, const double limit) -> double {
 			if (limit <= 0.0) { return v; }
@@ -33,16 +32,6 @@ namespace omni3_tracker {
 	auto TrackingController::reset(const Twist2& current_body) -> void {
 		this->integral_ = Pose2{};
 		this->previous_ = current_body;
-	}
-
-	auto TrackingController::wheel_speeds(const Twist2& body) const -> std::array<double, 3> {
-		std::array<double, 3> ret{};
-		for (std::size_t i = 0; i < 3; ++i) {
-			const double a = this->params_.wheel_angles[i];
-			// 車輪は機体中心から見て a の方向にあり、その接線方向に転がる
-			ret[i] = -std::sin(a) * body.vx + std::cos(a) * body.vy + this->params_.wheel_distance * body.omega;
-		}
-		return ret;
 	}
 
 	auto TrackingController::step(const Reference& ref, const Pose2& pose, const Twist2& velocity, const double dt)
@@ -103,16 +92,6 @@ namespace omni3_tracker {
 			}
 		}
 
-		// 3. 車輪速
-		if (prm.max_wheel_speed > 0.0) {
-			double worst = 0.0;
-			for (const double w : this->wheel_speeds(cmd)) { worst = std::max(worst, std::abs(w)); }
-			if (worst > prm.max_wheel_speed) {
-				const double k = prm.max_wheel_speed / worst;
-				cmd = Twist2{cmd.vx * k, cmd.vy * k, cmd.omega * k};
-				saturated = true;
-			}
-		}
 
 		if (!saturated) { this->integral_ = integral; }
 		this->previous_ = cmd;
@@ -121,4 +100,4 @@ namespace omni3_tracker {
 		out.saturated = saturated;
 		return out;
 	}
-} // namespace omni3_tracker
+} // namespace holonomic_tracker

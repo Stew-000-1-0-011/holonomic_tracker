@@ -9,11 +9,11 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#include "omni3_tracker/msg/tracking_reference.hpp"
-#include "omni3_tracker/types.hpp"
+#include "holonomic_tracker/msg/tracking_reference.hpp"
+#include "holonomic_tracker/types.hpp"
 
 namespace {
-	using omni3_tracker::msg::TrackingReference;
+	using holonomic_tracker::msg::TrackingReference;
 
 	class CircleReferencePublisher final : public rclcpp::Node {
 	public:
@@ -47,7 +47,7 @@ namespace {
 			m.header.frame_id = this->frame_;
 			m.x = this->cx_ + this->radius_ * std::cos(w * t);
 			m.y = this->cy_ + this->radius_ * std::sin(w * t);
-			m.yaw = omni3_tracker::wrap_angle(this->spin_ * t);
+			m.yaw = holonomic_tracker::wrap_angle(this->spin_ * t);
 			m.vx = -this->radius_ * w * std::sin(w * t);
 			m.vy = this->radius_ * w * std::cos(w * t);
 			m.omega = this->spin_;

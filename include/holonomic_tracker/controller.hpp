@@ -14,14 +14,13 @@
 /// 制限は次の順にかける。どれかが効いたら積分を止める (アンチワインドアップ)。
 /// 1. 速度の上限 (並進はベクトルの大きさで、方向を保って縮める)
 /// 2. 加速度の上限 (前回の指令からの変化量)
-/// 3. オムニ3輪の車輪速の上限 (全体を一律に縮めるので、進む方向と回転の比は保たれる)
+///
+/// 扱うのは機体速度 (vx, vy, omega) だけで、駆動機構 (オムニ、メカナムなど) には依存しない。
+/// 車輪ごとの制限が要るなら、cmd_vel を受ける下位のドライバ側でかける。
 
-#include <array>
-#include <numbers>
+#include "holonomic_tracker/types.hpp"
 
-#include "omni3_tracker/types.hpp"
-
-namespace omni3_tracker {
+namespace holonomic_tracker {
 	/// 1軸ぶんのゲイン。
 	struct AxisGains {
 		double kp{};
@@ -41,17 +40,6 @@ namespace omni3_tracker {
 		/// 加速度の上限 [m/s^2], [rad/s^2]。<= 0 で制限なし
 		double max_accel_linear{5.0};
 		double max_accel_angular{20.0};
-
-		/// 車輪の取付角 [rad] (機体中心から見た車輪の方向。x前方から反時計回り)
-		std::array<double, 3> wheel_angles{
-			0.5 * std::numbers::pi,
-			0.5 * std::numbers::pi + 2.0 * std::numbers::pi / 3.0,
-			0.5 * std::numbers::pi + 4.0 * std::numbers::pi / 3.0,
-		};
-		/// 機体中心から車輪までの距離 [m]
-		double wheel_distance{0.2};
-		/// 車輪の周速の上限 [m/s]。<= 0 で制限なし
-		double max_wheel_speed{0.0};
 
 		/// 機体座標系へ回すときの yaw の先読み [s]。
 		/// 指令が効いている間に機体が回るぶんを補う (制御周期の半分くらい)
@@ -91,12 +79,10 @@ namespace omni3_tracker {
 		/// @param dt       前回からの経過時間 [s]
 		auto step(const Reference& ref, const Pose2& pose, const Twist2& velocity, double dt) -> ControlOutput;
 
-		/// 車輪の周速 (オムニ3輪の逆運動学)。
-		[[nodiscard]] auto wheel_speeds(const Twist2& body) const -> std::array<double, 3>;
 
 	private:
 		ControllerParams params_;
 		Pose2 integral_{};
 		Twist2 previous_{};
 	};
-} // namespace omni3_tracker
+} // namespace holonomic_tracker

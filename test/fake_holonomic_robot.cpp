@@ -1,5 +1,5 @@
-/// @file fake_omni_robot.cpp
-/// 実機の代わりに cmd_vel で動く模擬のオムニ3輪。手動テスト用。
+/// @file fake_holonomic_robot.cpp
+/// 実機の代わりに cmd_vel で動く模擬の全方位移動ロボット。手動テスト用。
 ///
 /// - cmd_vel (機体座標系) に1次遅れ (plant_tau) で追従する
 /// - 一定の外乱速度 (disturbance_*, フィールド座標系) が乗る
@@ -22,15 +22,15 @@
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 
-#include "omni3_tracker/types.hpp"
+#include "holonomic_tracker/types.hpp"
 
 namespace {
-	using omni3_tracker::Pose2;
-	using omni3_tracker::Twist2;
+	using holonomic_tracker::Pose2;
+	using holonomic_tracker::Twist2;
 
-	class FakeOmniRobot final : public rclcpp::Node {
+	class FakeHolonomicRobot final : public rclcpp::Node {
 	public:
-		FakeOmniRobot() : rclcpp::Node{"fake_omni_robot"} {
+		FakeHolonomicRobot() : rclcpp::Node{"fake_holonomic_robot"} {
 			this->field_frame_ = this->declare_parameter<std::string>("field_frame", "field");
 			this->base_frame_ = this->declare_parameter<std::string>("base_frame", "base_link");
 			this->tau_ = this->declare_parameter<double>("plant_tau", 0.08);
@@ -85,10 +85,10 @@ namespace {
 			this->vel_.vx += a * (this->cmd_.vx - this->vel_.vx);
 			this->vel_.vy += a * (this->cmd_.vy - this->vel_.vy);
 			this->vel_.omega += a * (this->cmd_.omega - this->vel_.omega);
-			const auto vf = omni3_tracker::body_to_field(this->vel_, this->pose_.yaw + 0.5 * this->vel_.omega * dt);
+			const auto vf = holonomic_tracker::body_to_field(this->vel_, this->pose_.yaw + 0.5 * this->vel_.omega * dt);
 			this->pose_.x += (vf.vx + this->disturbance_.vx) * dt;
 			this->pose_.y += (vf.vy + this->disturbance_.vy) * dt;
-			this->pose_.yaw = omni3_tracker::wrap_angle(this->pose_.yaw + vf.omega * dt);
+			this->pose_.yaw = holonomic_tracker::wrap_angle(this->pose_.yaw + vf.omega * dt);
 
 			geometry_msgs::msg::PoseStamped truth{};
 			truth.header.stamp = now;
@@ -147,7 +147,7 @@ namespace {
 
 auto main(int argc, char** argv) -> int {
 	rclcpp::init(argc, argv);
-	rclcpp::spin(std::make_shared<FakeOmniRobot>());
+	rclcpp::spin(std::make_shared<FakeHolonomicRobot>());
 	rclcpp::shutdown();
 	return 0;
 }

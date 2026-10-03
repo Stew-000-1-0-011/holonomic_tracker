@@ -16,29 +16,29 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'params',
             default_value=PathJoinSubstitution(
-                [FindPackageShare('omni3_tracker'), 'config', 'tracker_node.yaml']),
+                [FindPackageShare('holonomic_tracker'), 'config', 'tracker_node.yaml']),
             description='tracker_node のパラメータファイル',
         ),
         DeclareLaunchArgument(
             'sim', default_value='false',
-            description='模擬ロボット (fake_omni_robot) と円の目標を一緒に起動する',
+            description='模擬ロボット (fake_holonomic_robot) と円の目標を一緒に起動する',
         ),
         Node(
-            package='omni3_tracker',
+            package='holonomic_tracker',
             executable='tracker_node',
             name='tracker_node',
             parameters=[params],
             output='screen',
         ),
         Node(
-            package='omni3_tracker',
-            executable='fake_omni_robot',
-            name='fake_omni_robot',
+            package='holonomic_tracker',
+            executable='fake_holonomic_robot',
+            name='fake_holonomic_robot',
             output='screen',
             condition=IfCondition(sim),
         ),
         Node(
-            package='omni3_tracker',
+            package='holonomic_tracker',
             executable='circle_reference_publisher',
             name='circle_reference_publisher',
             remappings=[('reference', '/tracker_node/reference')],

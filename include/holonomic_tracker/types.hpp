@@ -6,7 +6,7 @@
 #include <cmath>
 #include <numbers>
 
-namespace omni3_tracker {
+namespace holonomic_tracker {
 	/// 平面上の姿勢。yaw は [rad]。
 	struct Pose2 {
 		double x{};
@@ -39,4 +39,4 @@ namespace omni3_tracker {
 		const double s = std::sin(yaw);
 		return Twist2{c * field.vx + s * field.vy, -s * field.vx + c * field.vy, field.omega};
 	}
-} // namespace omni3_tracker
+} // namespace holonomic_tracker

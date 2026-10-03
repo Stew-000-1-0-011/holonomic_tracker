@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>omni3_tracker</name>
+  <name>holonomic_tracker</name>
   <version>0.0.0</version>
   <description>
-    オムニ3輪の軌道追従ノード。目標の位置・向きと速度FFを受け、自己位置から機体速度をオブザーバで推定し、フィードバック制御で cmd_vel を出す。
+    全方位移動ロボット (オムニ、メカナムなど) の軌道追従ノード。目標の位置・向きと速度FFを受け、自己位置から機体速度をオブザーバで推定し、フィードバック制御で cmd_vel を出す。
   </description>
   <maintainer email="shnsk0204@gmail.com">Stew</maintainer>
   <license>MIT</license>

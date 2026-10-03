@@ -1,14 +1,14 @@
 /// @file observer.cpp
 /// VelocityObserver の実装。
 
-#include "omni3_tracker/observer.hpp"
+#include "holonomic_tracker/observer.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 
-namespace omni3_tracker {
+namespace holonomic_tracker {
 	namespace {
 		/// 回転の扱い (区間中央の yaw で回す) の誤差を抑えるための最大刻み [s]
 		constexpr double max_step = 0.02;
@@ -264,4 +264,4 @@ namespace omni3_tracker {
 		if (!this->anchor_) { return std::nullopt; }
 		return this->anchor_->stamp;
 	}
-} // namespace omni3_tracker
+} // namespace holonomic_tracker

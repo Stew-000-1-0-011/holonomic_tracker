@@ -32,9 +32,9 @@
 #include <deque>
 #include <optional>
 
-#include "omni3_tracker/types.hpp"
+#include "holonomic_tracker/types.hpp"
 
-namespace omni3_tracker {
+namespace holonomic_tracker {
 	struct ObserverParams {
 		/// 下位速度制御の時定数 [s]。<= 0 で等速モデル (指令を使わない)
 		double tau_linear{0.1};
@@ -140,4 +140,4 @@ namespace omni3_tracker {
 		Twist2 before_{};
 		std::size_t rejects_{0};
 	};
-} // namespace omni3_tracker
+} // namespace holonomic_tracker

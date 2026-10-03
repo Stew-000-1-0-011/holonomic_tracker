@@ -1,5 +1,5 @@
 /// @file tracker_node.cpp
-/// オムニ3輪の軌道追従ノード。
+/// 全方位移動ロボットの軌道追従ノード。
 ///
 /// - 目標 (位置・向き・速度FF) を `~/reference` で受け取る
 /// - 自己位置 (姿勢だけ) を TF か PoseStamped で受け取る
@@ -13,7 +13,6 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
-#include <numbers>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -33,23 +32,23 @@
 #include <tf2_ros/transform_listener.h>
 #endif
 
-#include "omni3_tracker/controller.hpp"
-#include "omni3_tracker/msg/tracking_reference.hpp"
-#include "omni3_tracker/msg/tracking_status.hpp"
-#include "omni3_tracker/observer.hpp"
-#include "omni3_tracker/types.hpp"
+#include "holonomic_tracker/controller.hpp"
+#include "holonomic_tracker/msg/tracking_reference.hpp"
+#include "holonomic_tracker/msg/tracking_status.hpp"
+#include "holonomic_tracker/observer.hpp"
+#include "holonomic_tracker/types.hpp"
 
 namespace {
-	using omni3_tracker::ControllerParams;
-	using omni3_tracker::ObserverParams;
-	using omni3_tracker::Pose2;
-	using omni3_tracker::Reference;
-	using omni3_tracker::TrackingController;
-	using omni3_tracker::Twist2;
-	using omni3_tracker::UpdateResult;
-	using omni3_tracker::VelocityObserver;
-	using omni3_tracker::msg::TrackingReference;
-	using omni3_tracker::msg::TrackingStatus;
+	using holonomic_tracker::ControllerParams;
+	using holonomic_tracker::ObserverParams;
+	using holonomic_tracker::Pose2;
+	using holonomic_tracker::Reference;
+	using holonomic_tracker::TrackingController;
+	using holonomic_tracker::Twist2;
+	using holonomic_tracker::UpdateResult;
+	using holonomic_tracker::VelocityObserver;
+	using holonomic_tracker::msg::TrackingReference;
+	using holonomic_tracker::msg::TrackingStatus;
 
 	auto yaw_of(const double qx, const double qy, const double qz, const double qw) -> double {
 		return std::atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz));
@@ -95,9 +94,6 @@ namespace {
 			this->declare_parameter<double>("limits.max_velocity_angular", 6.0);
 			this->declare_parameter<double>("limits.max_accel_linear", 5.0);
 			this->declare_parameter<double>("limits.max_accel_angular", 20.0);
-			this->declare_parameter<double>("limits.max_wheel_speed", 0.0);
-			this->declare_parameter<std::vector<double>>("wheels.angles_deg", std::vector<double>{90.0, 210.0, 330.0});
-			this->declare_parameter<double>("wheels.distance", 0.2);
 
 			this->declare_parameter<double>("observer.tau_linear", 0.1);
 			this->declare_parameter<double>("observer.tau_angular", 0.1);
@@ -204,15 +200,6 @@ namespace {
 			cp.max_velocity_angular = d("limits.max_velocity_angular");
 			cp.max_accel_linear = d("limits.max_accel_linear");
 			cp.max_accel_angular = d("limits.max_accel_angular");
-			cp.max_wheel_speed = d("limits.max_wheel_speed");
-			const auto angles = this->get_parameter("wheels.angles_deg").as_double_array();
-			if (angles.size() == 3) {
-				for (std::size_t i = 0; i < 3; ++i) { cp.wheel_angles[i] = angles[i] * std::numbers::pi / 180.0; }
-			} else {
-				RCLCPP_ERROR(this->get_logger(), "wheels.angles_deg must have 3 elements (got %zu)", angles.size());
-				cp.wheel_angles = this->controller_.params().wheel_angles;
-			}
-			cp.wheel_distance = d("wheels.distance");
 			this->controller_.set_params(cp);
 
 			ObserverParams op{};
@@ -370,7 +357,7 @@ namespace {
 			if (state == TrackingStatus::STATE_ACTIVE) {
 				if (!this->active_) {
 					// 今の動きから始める (加速度制限の起点)
-					this->controller_.reset(omni3_tracker::field_to_body(est->velocity, est->pose.yaw));
+					this->controller_.reset(holonomic_tracker::field_to_body(est->velocity, est->pose.yaw));
 					RCLCPP_INFO(this->get_logger(), "tracking started");
 				}
 				this->active_ = true;
@@ -384,7 +371,7 @@ namespace {
 				);
 				ref.pose.x += ref.velocity.vx * lag;
 				ref.pose.y += ref.velocity.vy * lag;
-				ref.pose.yaw = omni3_tracker::wrap_angle(ref.pose.yaw + ref.velocity.omega * lag);
+				ref.pose.yaw = holonomic_tracker::wrap_angle(ref.pose.yaw + ref.velocity.omega * lag);
 
 				const auto out = this->controller_.step(ref, est->pose, est->velocity, dt);
 				this->publish_cmd(out.command, stamp);
@@ -420,7 +407,7 @@ namespace {
 			this->status_pub_->publish(status);
 		}
 
-		auto publish_odom(const omni3_tracker::Estimate& est, const rclcpp::Time& stamp) -> void {
+		auto publish_odom(const holonomic_tracker::Estimate& est, const rclcpp::Time& stamp) -> void {
 			nav_msgs::msg::Odometry m{};
 			m.header.stamp = stamp;
 			m.header.frame_id = this->field_frame_;
@@ -433,7 +420,7 @@ namespace {
 			m.pose.covariance[7] = est.sigma_pose.y * est.sigma_pose.y;
 			m.pose.covariance[35] = est.sigma_pose.yaw * est.sigma_pose.yaw;
 			// Odometry の twist は child_frame_id (機体座標系) で表す決まり
-			m.twist.twist = to_msg(omni3_tracker::field_to_body(est.velocity, est.pose.yaw));
+			m.twist.twist = to_msg(holonomic_tracker::field_to_body(est.velocity, est.pose.yaw));
 			m.twist.covariance[0] = est.sigma_velocity.vx * est.sigma_velocity.vx;
 			m.twist.covariance[7] = est.sigma_velocity.vy * est.sigma_velocity.vy;
 			m.twist.covariance[35] = est.sigma_velocity.omega * est.sigma_velocity.omega;

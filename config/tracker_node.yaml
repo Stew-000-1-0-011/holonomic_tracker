@@ -38,10 +38,6 @@ tracker_node:
       max_velocity_angular: 6.0 # [rad/s]
       max_accel_linear: 5.0     # [m/s^2]
       max_accel_angular: 20.0   # [rad/s^2]
-      max_wheel_speed: 0.0      # [m/s] 車輪の周速。超えたら指令全体を一律に縮める
-    wheels:
-      angles_deg: [90.0, 210.0, 330.0]  # 機体中心から見た各車輪の方向 (x前方から反時計回り)
-      distance: 0.2             # [m] 機体中心から車輪まで
 
     # --- オブザーバ (機体速度の推定) ---
     observer:

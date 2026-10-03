@@ -1,5 +1,5 @@
 /// @file tracking_sim_test.cpp
-/// オブザーバと制御則を、模擬したオムニ3輪で閉ループに回すテスト。ROS不要。
+/// オブザーバと制御則を、模擬した全方位移動ロボットで閉ループに回すテスト。ROS不要。
 ///
 /// 模擬する実機:
 /// - 下位の速度制御は指令に1次遅れ (時定数 plant_tau) で追従し、指令は cmd_delay 遅れて効く
@@ -15,11 +15,11 @@
 #include <random>
 #include <string>
 
-#include "omni3_tracker/controller.hpp"
-#include "omni3_tracker/observer.hpp"
+#include "holonomic_tracker/controller.hpp"
+#include "holonomic_tracker/observer.hpp"
 
 namespace {
-	using namespace omni3_tracker;
+	using namespace holonomic_tracker;
 
 	struct Scenario {
 		std::string name;
@@ -72,7 +72,6 @@ namespace {
 		ControllerParams cp{};
 		cp.linear.ki = sc.ki;
 		cp.angular.ki = sc.ki;
-		cp.max_wheel_speed = 3.0;
 		TrackingController controller{cp};
 
 		// 真値。初期姿勢は目標から少しずらす
