@@ -1,4 +1,4 @@
-# holonomic_tracker_ros
+# holonomic_tracker
 
 全方位移動ロボット (オムニ、メカナムなど) の軌道追従を行う ROS 2 パッケージ (パッケージ名 `holonomic_tracker`)。
 
