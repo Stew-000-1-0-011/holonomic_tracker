@@ -58,10 +58,21 @@ sotoba_ros と組み合わせるなら、sotoba_node 側で `publish_tf: true`�
 | sub | `~/reference` | `holonomic_tracker/msg/TrackingReference` |
 | sub | TF `field_frame -> base_frame` (`pose_source: tf`、既定) | |
 | sub | `pose_topic` (`pose_source: topic` のとき) | `geometry_msgs/msg/PoseStamped` |
+| sub | `odom_topic` (`pose_source: odom` のとき) | `nav_msgs/msg/Odometry` (外部の状態推定。姿勢と機体座標系の速度) |
 | pub | `cmd_vel_topic` (既定 `cmd_vel`) | `geometry_msgs/msg/Twist` (機体座標系)。`cmd_vel_stamped: true` で `TwistStamped` |
 | pub | `~/odom` | `nav_msgs/msg/Odometry` (オブザーバの推定。twist は機体座標系) |
 | pub | `~/status` | `holonomic_tracker/msg/TrackingStatus` |
 | srv | `~/enable` | `std_srvs/srv/SetBool` (false で止める) |
+
+### 外部の状態推定を使う (`pose_source: odom`)
+
+自己位置と速度を別のノード (例: oumuamua の state_estimator) が推定しているなら、
+`pose_source: odom` でその `Odometry` をそのまま使う。内蔵のオブザーバは使わず、
+受け取った推定をその時刻から今までの差だけ速度で外挿して制御する。`~/odom` は出さない。
+
+推定が前の推定の延長から `odom.jump_distance` / `odom.jump_yaw` 以上飛んだら
+(推定のやり直しなど)、制御器の積分と加速度制限の起点を捨てる。
+外部の推定が `pose_timeout` より古ければ止まるので、推定側は自己位置が取れていないときは出さないこと。
 
 ### 目標の渡し方
 

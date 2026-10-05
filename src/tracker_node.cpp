@@ -66,6 +66,7 @@ namespace {
 			this->base_frame_ = this->declare_parameter<std::string>("base_frame", "base_link");
 			const auto pose_source = this->declare_parameter<std::string>("pose_source", "tf");
 			const auto pose_topic = this->declare_parameter<std::string>("pose_topic", "pose");
+			const auto odom_topic = this->declare_parameter<std::string>("odom_topic", "odom");
 			const auto cmd_vel_topic = this->declare_parameter<std::string>("cmd_vel_topic", "cmd_vel");
 			const bool cmd_vel_stamped = this->declare_parameter<bool>("cmd_vel_stamped", false);
 			const double rate = this->declare_parameter<double>("control_rate", 50.0);
@@ -107,6 +108,10 @@ namespace {
 			this->declare_parameter<int>("observer.reset_after_rejects", 5);
 			this->declare_parameter<double>("observer.max_gap", 1.0);
 
+			// pose_source: odom のとき。推定値が飛んだら (外部の推定のリセットなど) 積分を捨てる
+			this->declare_parameter<double>("odom.jump_distance", 0.1);
+			this->declare_parameter<double>("odom.jump_yaw", 0.2);
+
 			this->load_params();
 			// 変更を受け付けてから読み直す。値の検証は load_params 側で丸める
 			this->param_cb_ = this->add_post_set_parameters_callback(
@@ -123,8 +128,16 @@ namespace {
 					rclcpp::SensorDataQoS{},
 					[this](const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) { this->on_pose(*msg); }
 				);
+			} else if (pose_source == "odom") {
+				// 外部の状態推定 (姿勢と速度) をそのまま使う。内蔵のオブザーバは使わない
+				this->odom_mode_ = true;
+				this->odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+					odom_topic,
+					rclcpp::QoS{10},
+					[this](const nav_msgs::msg::Odometry::ConstSharedPtr msg) { this->on_odom(*msg); }
+				);
 			} else {
-				throw std::invalid_argument{"pose_source must be \"tf\" or \"topic\": " + pose_source};
+				throw std::invalid_argument{"pose_source must be \"tf\", \"topic\" or \"odom\": " + pose_source};
 			}
 
 			this->reference_sub_ = this->create_subscription<TrackingReference>(
@@ -216,6 +229,9 @@ namespace {
 				static_cast<std::size_t>(std::max<std::int64_t>(0, this->get_parameter("observer.reset_after_rejects").as_int()));
 			op.max_gap = d("observer.max_gap");
 			this->observer_.set_params(op);
+
+			this->odom_jump_distance_ = d("odom.jump_distance");
+			this->odom_jump_yaw_ = d("odom.jump_yaw");
 		}
 
 		auto now_sec() -> double { return this->now().seconds(); }
@@ -256,6 +272,66 @@ namespace {
 				rclcpp::Time{msg.header.stamp}.seconds(),
 				Pose2{msg.pose.position.x, msg.pose.position.y, yaw_of(q.x, q.y, q.z, q.w)}
 			);
+		}
+
+		/// 外部の状態推定。姿勢はフィールド座標系、速度は機体座標系 (Odometry の決まり)。
+		auto on_odom(const nav_msgs::msg::Odometry& msg) -> void {
+			if (!msg.header.frame_id.empty() && msg.header.frame_id != this->field_frame_) {
+				RCLCPP_WARN_THROTTLE(
+					this->get_logger(),
+					*this->get_clock(),
+					2000,
+					"odom frame_id \"%s\" != field_frame \"%s\", ignored",
+					msg.header.frame_id.c_str(),
+					this->field_frame_.c_str()
+				);
+				return;
+			}
+			const auto& p = msg.pose.pose.position;
+			const auto& q = msg.pose.pose.orientation;
+			const auto& t = msg.twist.twist;
+			holonomic_tracker::Estimate est{};
+			est.stamp = rclcpp::Time{msg.header.stamp}.seconds();
+			est.pose = Pose2{p.x, p.y, yaw_of(q.x, q.y, q.z, q.w)};
+			est.velocity = holonomic_tracker::body_to_field(Twist2{t.linear.x, t.linear.y, t.angular.z}, est.pose.yaw);
+			est.sigma_pose = Pose2{
+				std::sqrt(std::max(0.0, msg.pose.covariance[0])),
+				std::sqrt(std::max(0.0, msg.pose.covariance[7])),
+				std::sqrt(std::max(0.0, msg.pose.covariance[35])),
+			};
+			est.sigma_velocity = Twist2{
+				std::sqrt(std::max(0.0, msg.twist.covariance[0])),
+				std::sqrt(std::max(0.0, msg.twist.covariance[7])),
+				std::sqrt(std::max(0.0, msg.twist.covariance[35])),
+			};
+
+			// 前の推定を今の時刻まで進めたものから大きく飛んだら、推定がやり直されたとみなす
+			if (this->odom_ && this->active_) {
+				const auto prev = this->extrapolate(*this->odom_, est.stamp);
+				const double jump = std::hypot(est.pose.x - prev.pose.x, est.pose.y - prev.pose.y);
+				const double jump_yaw = std::abs(holonomic_tracker::wrap_angle(est.pose.yaw - prev.pose.yaw));
+				if (jump > this->odom_jump_distance_ || jump_yaw > this->odom_jump_yaw_) {
+					RCLCPP_WARN(
+						this->get_logger(),
+						"odom jumped by %.3f m / %.3f rad; restarting the controller",
+						jump,
+						jump_yaw
+					);
+					this->controller_.reset(holonomic_tracker::field_to_body(est.velocity, est.pose.yaw));
+				}
+			}
+			this->odom_ = est;
+		}
+
+		/// 推定をその速度のまま時刻 t まで進める
+		static auto extrapolate(const holonomic_tracker::Estimate& est, const double t) -> holonomic_tracker::Estimate {
+			auto out = est;
+			const double dt = t - est.stamp;
+			out.stamp = t;
+			out.pose.x += est.velocity.vx * dt;
+			out.pose.y += est.velocity.vy * dt;
+			out.pose.yaw = holonomic_tracker::wrap_angle(est.pose.yaw + est.velocity.omega * dt);
+			return out;
 		}
 
 		/// TF から最新の自己位置を引く。新しいものだけ観測として入れる。
@@ -320,6 +396,7 @@ namespace {
 			if (this->last_now_ && now < *this->last_now_ - 1e-3) {
 				RCLCPP_WARN(this->get_logger(), "time jumped backwards, resetting");
 				this->observer_.reset();
+				this->odom_.reset();
 				this->reference_.reset();
 				this->last_tf_stamp_.reset();
 				this->active_ = false;
@@ -330,8 +407,18 @@ namespace {
 
 			this->poll_tf();
 
-			const auto est = this->observer_.estimate(now);
-			const auto last_meas = this->observer_.last_measurement_stamp();
+			std::optional<holonomic_tracker::Estimate> est{};
+			std::optional<double> last_meas{};
+			if (this->odom_mode_) {
+				// 外部の推定を、届いてから今までの差だけ外挿する (同じ PC なら数 ms)
+				if (this->odom_) {
+					est = this->extrapolate(*this->odom_, now);
+					last_meas = this->odom_->stamp;
+				}
+			} else {
+				est = this->observer_.estimate(now);
+				last_meas = this->observer_.last_measurement_stamp();
+			}
 
 			std::uint8_t state = TrackingStatus::STATE_ACTIVE;
 			if (!this->enabled_) {
@@ -398,7 +485,8 @@ namespace {
 
 			if (est) {
 				status.disturbance = to_msg(est->disturbance);
-				this->publish_odom(*est, stamp);
+				// 外部の推定を使っているときは、それを出し直しても意味がないので出さない
+				if (!this->odom_mode_) { this->publish_odom(*est, stamp); }
 			}
 			this->status_pub_->publish(status);
 		}
@@ -432,6 +520,10 @@ namespace {
 		double cmd_delay_{0.0};
 
 		VelocityObserver observer_{};
+		bool odom_mode_{false};
+		std::optional<holonomic_tracker::Estimate> odom_{};
+		double odom_jump_distance_{0.1};
+		double odom_jump_yaw_{0.2};
 		TrackingController controller_{};
 
 		std::optional<Reference> reference_{};
@@ -445,6 +537,7 @@ namespace {
 		std::unique_ptr<tf2_ros::Buffer> tf_buffer_{};
 		std::shared_ptr<tf2_ros::TransformListener> tf_listener_{};
 		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_{};
+		rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_{};
 		rclcpp::Subscription<TrackingReference>::SharedPtr reference_sub_{};
 		rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_srv_{};
 		rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_{};

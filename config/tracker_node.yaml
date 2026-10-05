@@ -5,8 +5,11 @@ tracker_node:
     # --- 起動時のみ ---
     field_frame: field          # 目標・自己位置の座標系
     base_frame: base_link       # 追従させる機体のフレーム (TFの子)
-    pose_source: tf             # tf: field_frame -> base_frame を引く / topic: pose_topic (PoseStamped)
+    # tf: field_frame -> base_frame を引く / topic: pose_topic (PoseStamped)
+    # odom: odom_topic (Odometry) の外部の状態推定 (姿勢と速度) をそのまま使い、内蔵のオブザーバは使わない
+    pose_source: tf
     pose_topic: pose
+    odom_topic: odom
     cmd_vel_topic: cmd_vel
     cmd_vel_stamped: false      # true なら TwistStamped で出す
     control_rate: 50.0          # [Hz]
@@ -39,7 +42,13 @@ tracker_node:
       max_accel_linear: 5.0     # [m/s^2]
       max_accel_angular: 20.0   # [rad/s^2]
 
-    # --- オブザーバ (機体速度の推定) ---
+    # --- pose_source: odom のとき ---
+    # 外部の推定がこれより飛んだら (推定のやり直しなど) 制御器の積分を捨てる
+    odom:
+      jump_distance: 0.1        # [m]
+      jump_yaw: 0.2             # [rad]
+
+    # --- オブザーバ (機体速度の推定。pose_source が tf / topic のとき) ---
     observer:
       tau_linear: 0.1           # [s] 下位速度制御の時定数。<= 0 で指令を使わない等速モデル
       tau_angular: 0.1
