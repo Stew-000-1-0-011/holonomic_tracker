@@ -25,12 +25,14 @@
 | `src/tracker_node.cpp` | ノード本体。ROSの入出力とパラメータだけを見る |
 | `msg/TrackingReference.msg` | 目標 (位置・向き・速度FF) |
 | `msg/TrackingStatus.msg` | 内部状態 (誤差・FF・FB・外乱など。調整用) |
-| `config/tracker_node.yaml` | パラメータ |
 | `launch/tracker_node.launch.py` | 起動。`sim:=true` で模擬ロボットと円の目標も立てる |
 | `test/tracking_sim_test.cpp` | 閉ループのシミュレーションテスト (ROS不要) |
 | `test/fake_holonomic_robot.cpp` | `cmd_vel` で動く模擬ロボット。遅れ・ノイズ付きで TF を出す |
 | `test/circle_reference_publisher.cpp` | 円を描きながら回る目標を出す (軌道生成の例) |
 | `test/check_tracking.py` | 模擬ロボットの真値と目標を突き合わせる手動テスト |
+
+
+**パラメータに既定値は無い。** 全部パラメータファイルで与える (足りなければ起動時にエラーで止まる)。この機体の値と各項目の説明は oumuamua の `src/oumuamua_bringup/config/tracker_node.yaml` にある。
 
 ## ビルド
 
@@ -44,11 +46,11 @@ colcon build --packages-select holonomic_tracker --cmake-args -DCMAKE_BUILD_TYPE
 ## 使い方
 
 ```bash
-ros2 launch holonomic_tracker tracker_node.launch.py
+ros2 launch holonomic_tracker tracker_node.launch.py params:=/path/to/tracker_node.yaml
 ```
 
 sotoba_ros と組み合わせるなら、sotoba_node 側で `publish_tf: true`、
-`tf_child_frame: base_link` にしておく。tracker_node は既定で
+`tf_child_frame: base_link` にしておく。tracker_node は `pose_source: tf` なら
 `field -> base_link` を TF から引く。
 
 ### トピック
@@ -56,10 +58,10 @@ sotoba_ros と組み合わせるなら、sotoba_node 側で `publish_tf: true`�
 | 方向 | トピック | 型 |
 | --- | --- | --- |
 | sub | `~/reference` | `holonomic_tracker/msg/TrackingReference` |
-| sub | TF `field_frame -> base_frame` (`pose_source: tf`、既定) | |
+| sub | TF `field_frame -> base_frame` (`pose_source: tf` のとき) | |
 | sub | `pose_topic` (`pose_source: topic` のとき) | `geometry_msgs/msg/PoseStamped` |
 | sub | `odom_topic` (`pose_source: odom` のとき) | `nav_msgs/msg/Odometry` (外部の状態推定。姿勢と機体座標系の速度) |
-| pub | `cmd_vel_topic` (既定 `cmd_vel`) | `geometry_msgs/msg/Twist` (機体座標系)。`cmd_vel_stamped: true` で `TwistStamped` |
+| pub | `cmd_vel_topic` (例 `cmd_vel`) | `geometry_msgs/msg/Twist` (機体座標系)。`cmd_vel_stamped: true` で `TwistStamped` |
 | pub | `~/odom` | `nav_msgs/msg/Odometry` (オブザーバの推定。twist は機体座標系) |
 | pub | `~/status` | `holonomic_tracker/msg/TrackingStatus` |
 | srv | `~/enable` | `std_srvs/srv/SetBool` (false で止める) |
@@ -84,8 +86,8 @@ tracker_node は受け取った点を、その時刻から今まで速度FFで�
 多少遅れて届いても、少し先の時刻の点を送っても正しく扱われる。
 `header.stamp` が 0 なら受信時刻とみなす。
 
-`reference_timeout` (既定 0.2 s) 以上目標が来なければ、ゼロを1度出して止まる。
-自己位置が `pose_timeout` (既定 0.3 s) より古くなったときも同じ。止まった後は
+`reference_timeout` (例 0.2 s) 以上目標が来なければ、ゼロを1度出して止まる。
+自己位置が `pose_timeout` (例 0.3 s) より古くなったときも同じ。止まった後は
 `cmd_vel` を出し続けないので、手動操縦など別のノードと切り替えて使える。
 
 ## 制御則
@@ -99,7 +101,7 @@ tracker_node は受け取った点を、その時刻から今まで速度FFで�
 
 - `kp` の項: 位置の誤差を戻す。主役
 - `kd` の項: 速度FFに対して実際の速度が遅れているぶんを足す。下位の速度制御の遅れを補う
-- `ki` の項: 滑りなどの一定外乱による定常偏差を消す。既定は 0
+- `ki` の項: 滑りなどの一定外乱による定常偏差を消す。oumuamua では 0
 
 機体座標系へ回すときは、`heading_lookahead` 秒先の yaw を使う。
 回りながら並進するとき、指令が効いている間に機体が回るぶんを補うため。
@@ -184,7 +186,7 @@ colcon test-result --verbose
 模擬ロボットは sotoba_node と同じ形 (スキャン時刻つき・遅れて届く TF) で自己位置を出す。
 
 ```bash
-ros2 launch holonomic_tracker tracker_node.launch.py sim:=true
+ros2 launch holonomic_tracker tracker_node.launch.py params:=/path/to/tracker_node.yaml sim:=true
 ros2 run holonomic_tracker check_tracking.py   # 別端末で。10 s 測って表示する
 ```
 

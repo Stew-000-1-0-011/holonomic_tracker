@@ -94,7 +94,7 @@ install(PROGRAMS test/check_tracking.py
 install(DIRECTORY include/
 	DESTINATION include
 )
-install(DIRECTORY config launch
+install(DIRECTORY launch
 	DESTINATION share/${PROJECT_NAME}
 )
 

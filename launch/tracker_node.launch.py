@@ -3,9 +3,8 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -15,9 +14,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'params',
-            default_value=PathJoinSubstitution(
-                [FindPackageShare('holonomic_tracker'), 'config', 'tracker_node.yaml']),
-            description='tracker_node のパラメータファイル',
+            description='tracker_node のパラメータファイル (必須。tracker_node は既定値を持たない)',
         ),
         DeclareLaunchArgument(
             'sim', default_value='false',

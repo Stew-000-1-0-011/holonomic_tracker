@@ -62,55 +62,55 @@ namespace {
 	public:
 		TrackerNode() : rclcpp::Node{"tracker_node"} {
 			// --- 起動時にしか読まないもの ---
-			this->field_frame_ = this->declare_parameter<std::string>("field_frame", "field");
-			this->base_frame_ = this->declare_parameter<std::string>("base_frame", "base_link");
-			const auto pose_source = this->declare_parameter<std::string>("pose_source", "tf");
-			const auto pose_topic = this->declare_parameter<std::string>("pose_topic", "pose");
-			const auto odom_topic = this->declare_parameter<std::string>("odom_topic", "odom");
-			const auto cmd_vel_topic = this->declare_parameter<std::string>("cmd_vel_topic", "cmd_vel");
-			const bool cmd_vel_stamped = this->declare_parameter<bool>("cmd_vel_stamped", false);
-			const double rate = this->declare_parameter<double>("control_rate", 50.0);
+			this->field_frame_ = this->declare_parameter<std::string>("field_frame");
+			this->base_frame_ = this->declare_parameter<std::string>("base_frame");
+			const auto pose_source = this->declare_parameter<std::string>("pose_source");
+			const auto pose_topic = this->declare_parameter<std::string>("pose_topic");
+			const auto odom_topic = this->declare_parameter<std::string>("odom_topic");
+			const auto cmd_vel_topic = this->declare_parameter<std::string>("cmd_vel_topic");
+			const bool cmd_vel_stamped = this->declare_parameter<bool>("cmd_vel_stamped");
+			const double rate = this->declare_parameter<double>("control_rate");
 
 			// --- 実行中に変えられるもの (ros2 param set で効く) ---
-			this->declare_parameter<double>("reference_timeout", 0.2);
-			this->declare_parameter<double>("pose_timeout", 0.3);
-			this->declare_parameter<double>("max_reference_extrapolation", 0.2);
-			this->declare_parameter<double>("cmd_delay", 0.0);
+			this->declare_parameter<double>("reference_timeout");
+			this->declare_parameter<double>("pose_timeout");
+			this->declare_parameter<double>("max_reference_extrapolation");
+			this->declare_parameter<double>("cmd_delay");
 
-			this->declare_parameter<double>("gains.linear.kp", 3.0);
-			this->declare_parameter<double>("gains.linear.ki", 0.0);
-			this->declare_parameter<double>("gains.linear.kd", 0.3);
-			this->declare_parameter<double>("gains.linear.integral_limit", 0.1);
-			this->declare_parameter<double>("gains.angular.kp", 4.0);
-			this->declare_parameter<double>("gains.angular.ki", 0.0);
-			this->declare_parameter<double>("gains.angular.kd", 0.3);
-			this->declare_parameter<double>("gains.angular.integral_limit", 0.1);
-			this->declare_parameter<double>("heading_lookahead", 0.5 / rate);
+			this->declare_parameter<double>("gains.linear.kp");
+			this->declare_parameter<double>("gains.linear.ki");
+			this->declare_parameter<double>("gains.linear.kd");
+			this->declare_parameter<double>("gains.linear.integral_limit");
+			this->declare_parameter<double>("gains.angular.kp");
+			this->declare_parameter<double>("gains.angular.ki");
+			this->declare_parameter<double>("gains.angular.kd");
+			this->declare_parameter<double>("gains.angular.integral_limit");
+			this->declare_parameter<double>("heading_lookahead");
 
-			this->declare_parameter<double>("limits.max_velocity_linear", 2.0);
-			this->declare_parameter<double>("limits.max_velocity_angular", 6.0);
-			this->declare_parameter<double>("limits.max_accel_linear", 5.0);
-			this->declare_parameter<double>("limits.max_accel_angular", 20.0);
+			this->declare_parameter<double>("limits.max_velocity_linear");
+			this->declare_parameter<double>("limits.max_velocity_angular");
+			this->declare_parameter<double>("limits.max_accel_linear");
+			this->declare_parameter<double>("limits.max_accel_angular");
 
-			this->declare_parameter<double>("observer.tau_linear", 0.1);
-			this->declare_parameter<double>("observer.tau_angular", 0.1);
-			this->declare_parameter<double>("observer.accel_noise_linear", 1.0);
-			this->declare_parameter<double>("observer.accel_noise_angular", 2.0);
-			this->declare_parameter<double>("observer.disturbance_noise_linear", 0.05);
-			this->declare_parameter<double>("observer.disturbance_noise_angular", 0.1);
-			this->declare_parameter<double>("observer.sigma_position", 0.01);
-			this->declare_parameter<double>("observer.sigma_yaw", 0.01);
-			this->declare_parameter<double>("observer.initial_sigma_velocity_linear", 0.5);
-			this->declare_parameter<double>("observer.initial_sigma_velocity_angular", 1.0);
-			this->declare_parameter<double>("observer.initial_sigma_disturbance_linear", 0.1);
-			this->declare_parameter<double>("observer.initial_sigma_disturbance_angular", 0.2);
-			this->declare_parameter<double>("observer.gate_sigma", 0.0);
-			this->declare_parameter<int>("observer.reset_after_rejects", 5);
-			this->declare_parameter<double>("observer.max_gap", 1.0);
+			this->declare_parameter<double>("observer.tau_linear");
+			this->declare_parameter<double>("observer.tau_angular");
+			this->declare_parameter<double>("observer.accel_noise_linear");
+			this->declare_parameter<double>("observer.accel_noise_angular");
+			this->declare_parameter<double>("observer.disturbance_noise_linear");
+			this->declare_parameter<double>("observer.disturbance_noise_angular");
+			this->declare_parameter<double>("observer.sigma_position");
+			this->declare_parameter<double>("observer.sigma_yaw");
+			this->declare_parameter<double>("observer.initial_sigma_velocity_linear");
+			this->declare_parameter<double>("observer.initial_sigma_velocity_angular");
+			this->declare_parameter<double>("observer.initial_sigma_disturbance_linear");
+			this->declare_parameter<double>("observer.initial_sigma_disturbance_angular");
+			this->declare_parameter<double>("observer.gate_sigma");
+			this->declare_parameter<int>("observer.reset_after_rejects");
+			this->declare_parameter<double>("observer.max_gap");
 
 			// pose_source: odom のとき。推定値が飛んだら (外部の推定のリセットなど) 積分を捨てる
-			this->declare_parameter<double>("odom.jump_distance", 0.1);
-			this->declare_parameter<double>("odom.jump_yaw", 0.2);
+			this->declare_parameter<double>("odom.jump_distance");
+			this->declare_parameter<double>("odom.jump_yaw");
 
 			this->load_params();
 			// 変更を受け付けてから読み直す。値の検証は load_params 側で丸める
@@ -551,7 +551,14 @@ namespace {
 
 auto main(int argc, char** argv) -> int {
 	rclcpp::init(argc, argv);
-	rclcpp::spin(std::make_shared<TrackerNode>());
+	try {
+		rclcpp::spin(std::make_shared<TrackerNode>());
+	} catch (const std::exception& e) {
+		// パラメータが足りないときなど (既定値は持たないので、全部パラメータファイルで与える)
+		RCLCPP_FATAL(rclcpp::get_logger("tracker_node"), "%s", e.what());
+		rclcpp::shutdown();
+		return 1;
+	}
 	rclcpp::shutdown();
 	return 0;
 }
